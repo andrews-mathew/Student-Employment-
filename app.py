@@ -2,17 +2,27 @@ import gradio as gr
 import pickle
 import numpy as np
 
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
-
-with open("scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
+try:
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
+    with open("scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
+except FileNotFoundError:
+    print("Error: Model or scaler file not found. Please ensure 'model.pkl' and 'scaler.pkl' exist.")
+    exit()  # Exit if files are missing
 
 def predict_employability(*features):
-    features = np.array(features).reshape(1, -1)
-    features_scaled = scaler.transform(features)
-    prediction = model.predict(features_scaled)
-    return "Congrats, You're Employable!" if prediction[0] == 1 else "Sorry, Better luck next time"
+    try:
+        features = np.array(features).reshape(1, -1)
+        features_scaled = scaler.transform(features)
+        prediction = model.predict(features_scaled)
+        probability = model.predict_proba(features_scaled)[0][prediction[0]]
+        if prediction[0] == 1:
+            return f"Employability Prediction: Employable (Probability: {probability:.2f})"
+        else:
+            return f"Employability Prediction: Less Employable (Probability: {probability:.2f})"
+    except Exception as e:
+        return f"Error during prediction: {e}"
 
 with gr.Blocks() as demo:
     gr.Markdown("# Student Employability Prediction")
@@ -38,5 +48,13 @@ with gr.Blocks() as demo:
 
     submit = gr.Button("Submit")
     submit.click(predict_employability, inputs=sliders, outputs=output)
+
+    examples = [
+        [5, 5, 5, 5, 5, 5, 5, 5],
+        [1, 1, 1, 1, 1, 1, 1, 1],
+        [3, 4, 2, 5, 3, 4, 4, 3],
+    ]
+    gr.Examples(examples, inputs=sliders, outputs=output)
+    gr.Markdown("Example Input Data")
 
 demo.launch()
